@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고급 텍스트 병합기 + 스마트 유틸리티</title>
+<style>
+:root {
+    --primary: #0071e3;
+    --primary-hover: #0077ed;
+    --primary-light: #e8f2fc;
+    --danger: #ff453a;
+    --danger-hover: #ff554b;
+    --success: #34c759;
+    --warning: #ff9500;
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    --panel-bg: rgba(255, 255, 255, 0.65);
+    --panel-border: rgba(255, 255, 255, 0.4);
+    --text-main: #1d1d1f;
+    --text-muted: #86868b;
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    min-height: 100vh;
+    background: var(--bg-gradient);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 30px 20px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Glassmorphism Card Base */
+.glass-card {
+    background: var(--panel-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 20px;
+}
+
+/* Dropzone Area */
+.dropzone-area {
+    border: 2px dashed rgba(0, 113, 227, 0.3);
+    background: rgba(255, 255, 255, 0.4);
+    padding: 40px 20px;
+    border-radius: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dropzone-area:hover, .dropzone-area.dragover {
+    border-color: var(--primary);
+    background: rgba(0, 113, 227, 0.04);
+    transform: scale(0.995);
+}
+.dropzone-area .icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+}
+.dropzone-area p {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+.dropzone-area span {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: block;
+}
+
+/* Dashboard Metrics */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.metric-card {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 16px;
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+}
+.metric-card .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.metric-card .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-top: 4px;
+}
+
+/* Search Bar & Auto Sorter Row */
+.control-header-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.search-box {
+    flex: 1;
+    min-width: 250px;
+}
+.search-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    color: var(--text-main);
+    outline: none;
+    transition: all 0.2s;
+}
+.search-box input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+}
+
+.sort-select-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sort-select-box select {
+    padding: 12px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    outline: none;
+    cursor: pointer;
+}
+
+/* Separation Config Row */
+.config-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 10px 4px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.config-item input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+/* File List Window */
+.file-window {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    transition: background 0.2s;
+}
+.file-item:last-child { border-bottom: 0; }
+.file-item:hover { background: rgba(255, 255, 255, 0.6); }
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.file-index {
+    color: var(--text-muted);
+    font-weight: 600;
+    min-width: 20px;
+}
+.file-size-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.04);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+.file-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Buttons System */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+button {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-secondary { background: rgba(0, 0, 0, 0.05); color: var(--text-main); }
+.btn-secondary:hover:not(:disabled) { background: rgba(0, 0, 0, 0.1); transform: translateY(-1px); }
+.btn-danger { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: rgba(255, 69, 58, 0.25); color: var(--danger-hover); }
+
+.btn-icon {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: var(--text-main);
+    font-size: 12px;
+    box-shadow: var(--shadow-sm);
+}
+.btn-icon:hover { background: #fafafa; border-color: rgba(0,0,0,0.15); }
+
+/* Progress Bar */
+.progress-container {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    display: none;
+}
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--primary);
+    border-radius: 10px;
+    transition: width 0.2s ease;
+}
+
+/* Inspection & Report Panels */
+.report-box { display: none; margin-bottom: 20px; }
+.status-banner {
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.status-banner.success { background: rgba(52, 199, 89, 0.15); color: #1e7e34; border: 1px solid rgba(52, 199, 89, 0.2); }
+.status-banner.warning { background: rgba(255, 149, 0, 0.15); color: #b36b00; border: 1px solid rgba(255, 149, 0, 0.2); }
+.status-banner.danger { background: rgba(255, 69, 58, 0.12); color: #d32f2f; border: 1px solid rgba(255, 69, 58, 0.2); }
+
+.report-summary {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-left: 4px;
+}
+
+/* Textarea Preview */
+.preview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+}
+textarea {
+    width: 100%;
+    height: 320px;
+    background: #fff;
+    color: var(--text-main);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--primary); }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📄 고급 텍스트 파일 병합기</h1>
+    </header>
+
+    <!-- 업로드 카드 -->
+    <div class="glass-card">
+        <div id="drop" class="dropzone-area">
+            <span class="icon">📥</span>
+            <p>파일을 이 영역에 드래그 앤 드롭하거나 클릭하여 선택하세요.</p>
+            <span>지원 확장자: .txt, .html, .css, .js, .csv, .md, .json</span>
+            <input id="files" type="file" multiple hidden>
+        </div>
+    </div>
+
+    <!-- 대시보드 통계 패널 -->
+    <div class="dashboard-grid">
+        <div class="metric-card">
+            <div class="label">선택된 파일 수</div>
+            <div id="stat-count" class="value">0개</div>
+        </div>
+        <div class="metric-card">
+            <div class="label">총 데이터 용량</div>
+            <div id="stat-size" class="value">0.00 MB</div>
+        </div>
+        <div class="metric-card">
+            <div class="label">평균 파일 용량</div>
+            <div id="stat-avg" class="value">0.00 KB</div>
+        </div>
+    </div>
+
+    <!-- 탐색 및 리스트 제어 카드 -->
+    <div class="glass-card">
+        <div class="control-header-row">
+            <div class="search-box">
+                <input id="search" placeholder="파일명으로 리스트 검색 및 필터링...">
+            </div>
+            <div class="sort-select-box">
+                <select id="sort-engine">
+                    <option value="none">정렬 방식 선택 (기본: 유저 순서)</option>
+                    <option value="name-asc">이름 오름차순 (A-Z, 가-하)</option>
+                    <option value="name-desc">이름 내림차순 (Z-A, 하-가)</option>
+                    <option value="size-asc">용량 작은 순</option>
+                    <option value="size-desc">용량 큰 순</option>
+                    <option value="num-asc">파일명 포함 숫자 순</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 자체 탑재 아이디어: 구분자(구분선) 종류 커스텀 커스터마이징 기능 -->
+        <div class="config-row">
+            <span>파일 간 구분 경계면 설정:</span>
+            <label class="config-item"><input type="radio" name="separator" value="br" checked> 기본 줄바꿈 (\n\n)</label>
+            <label class="config-item"><input type="radio" name="separator" value="dash"> 대시 구분선 (---)</label>
+            <label class="config-item"><input type="radio" name="separator" value="name"> 파일명 주석 기입</label>
+            <label class="config-item"><input type="radio" name="separator" value="none"> 구분자 없음</label>
+        </div>
+
+        <div id="list" class="file-window"></div>
+    </div>
+
+    <!-- 제어 툴바 -->
+    <div class="btn-row">
+        <button id="merge" class="btn-primary">⚡ 병합</button>
+        <button id="copy" class="btn-secondary" disabled>📋 복사</button>
+        <button id="save" class="btn-secondary" disabled>💾 저장</button>
+        <button id="check" class="btn-secondary">🔍 번호 검사</button>
+        <button id="clear" class="btn-danger">🗑 초기화</button>
+    </div>
+
+    <!-- 진행 상황 표시줄 -->
+    <div id="progress-container" class="progress-container">
+        <div id="bar" class="progress-bar"></div>
+    </div>
+
+    <!-- 결과 보고서 패널 -->
+    <div id="report-box" class="report-box"></div>
+
+    <!-- 실시간 미리보기 창 -->
+    <div class="glass-card">
+        <span class="preview-title">병합 데이터 미리보기 (5MB 미만 파일 그룹만 실시간 출력)</span>
+        <textarea id="preview" readonly placeholder="병합 작업 완료 시 여기에 결과물이 노출됩니다."></textarea>
+    </div>
+</div>
+
+<script>
+let selected = [];
+let mergedBlob = null;
+let mergedText = null;
+
+const $ = id => document.getElementById(id);
+
+// 파일 입력 트래킹 구조
+$('drop').onclick = () => $('files').click();
+
+$('files').onchange = e => {
+    if (e.target.files.length > 0) {
+        selected.push(...e.target.files);
+        applySortAndRender();
+    }
+};
+
+$('drop').addEventListener("dragover", e => {
+    e.preventDefault();
+    $('drop').classList.add("dragover");
+});
+
+$('drop').addEventListener("dragleave", () => $('drop').classList.remove("dragover"));
+
+$('drop').addEventListener("drop", e => {
+    e.preventDefault();
+    $('drop').classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) {
+        selected.push(...e.dataTransfer.files);
+        applySortAndRender();
+    }
+});
+
+// 자동 정렬 엔진 구현 및 렌더링 스위칭
+function applySortAndRender() {
+    const sortType = $('sort-engine').value;
+    
+    if (sortType === "name-asc") {
+        selected.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+    } else if (sortType === "name-desc") {
+        selected.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true, sensitivity: 'base'}));
+    } else if (sortType === "size-asc") {
+        selected.sort((a, b) => a.size - b.size);
+    } else if (sortType === "size-desc") {
+        selected.sort((a, b) => b.size - a.size);
+    } else if (sortType === "num-asc") {
+        selected.sort((a, b) => {
+            const numA = a.name.match(/\d+/);
+            const numB = b.name.match(/\d+/);
+            return (numA ? parseInt(numA[0]) : 0) - (numB ? parseInt(numB[0]) : 0);
+        });
+    }
+    render($('search').value);
+}
+
+// 실시간 정렬 셀렉트 박스 바뀔 때 동작
+$('sort-engine').onchange = () => applySortAndRender();
+
+// 리스트 출력 스크립트 엔진
+function render(filter = "") {
+    $('list').innerHTML = "";
+    let total = 0;
+
+    selected.forEach((f, i) => {
+        total += f.size;
+
+        if (filter && !f.name.toLowerCase().includes(filter.toLowerCase()))
+            return;
+
+        const row = document.createElement("div");
+        row.className = "file-item";
+        
+        // 가독성 높은 용량 환산 표기 변환
+        const displaySize = f.size > 1024 * 1024 
+            ? `${(f.size / 1024 / 1024).toFixed(2)} MB` 
+            : `${(f.size / 1024).toFixed(1)} KB`;
+
+        row.innerHTML = `
+            <div class="file-info">
+                <span class="file-index">${i + 1}</span>
+                <span>${f.name}</span>
+                <span class="file-size-tag">${displaySize}</span>
+            </div>
+            <div class="file-actions">
+                <button class="btn-icon" onclick="up(${i}, event)">▲</button>
+                <button class="btn-icon" onclick="down(${i}, event)">▼</button>
+                <button class="btn-icon" style="color:var(--danger);" onclick="delFile(${i}, event)">✕</button>
+            </div>`;
+
+        $('list').appendChild(row);
+    });
+
+    if ($('list').children.length === 0 && !filter) {
+        $('list').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:14px;">추가된 파일이 없습니다.</div>';
+    }
+
+    // 통계 패널 업데이트 (평균치 신설 추가)
+    $('stat-count').textContent = `${selected.length}개`;
+    $('stat-size').textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
+    
+    const avgKB = selected.length ? ((total / selected.length) / 1024).toFixed(1) : "0.0";
+    $('stat-avg').textContent = `${avgKB} KB`;
+}
+
+// 순서 핸들링 시스템
+window.up = (i, e) => {
+    if(e) e.stopPropagation();
+    if (i === 0) return;
+    $('sort-engine').value = "none"; // 순서를 수동 변경하면 정렬 기준을 초기화 시켜 꼬임 방지
+    [selected[i - 1], selected[i]] = [selected[i], selected[i - 1]];
+    render($('search').value);
+}
+
+window.down = (i, e) => {
+    if(e) e.stopPropagation();
+    if (i >= selected.length - 1) return;
+    $('sort-engine').value = "none";
+    [selected[i + 1], selected[i]] = [selected[i], selected[i + 1]];
+    render($('search').value);
+}
+
+window.delFile = (i, e) => {
+    if(e) e.stopPropagation();
+    selected.splice(i, 1);
+    render($('search').value);
+}
+
+$('search').oninput = e => render(e.target.value);
+
+// 클리어 시 완벽 세팅 복구 구현 (인풋 .value 비우기 포함 유지)
+$('clear').onclick = () => {
+    selected = [];
+    mergedBlob = null;
+    mergedText = null;
+    $('files').value = ""; 
+    $('preview').value = "";
+    $('search').value = "";
+    $('sort-engine').value = "none";
+    
+    $('report-box').innerHTML = "";
+    $('report-box').style.display = "none";
+    
+    $('progress-container').style.display = "none";
+    $('bar').style.width = "0%";
+    
+    $('copy').disabled = true;
+    $('save').disabled = true;
+    
+    render();
+};
+
+// 일련번호 연속 무결성 체커 검증 도구
+$('check').onclick = () => {
+    if (!selected.length) {
+        $('report-box').style.display = "block";
+        $('report-box').innerHTML = '<div class="status-banner danger">검사할 파일이 존재하지 않습니다. 파일을 먼저 추가해 주세요.</div>';
+        return;
+    }
+
+    const nums = [];
+    for (const f of selected) {
+        const m = f.name.match(/(\d+)(?!.*\d)/);
+        if (m) {
+            nums.push({ num: parseInt(m[1]), raw: m[1] });
+        }
+    }
+
+    if (nums.length < 2) {
+        $('report-box').style.display = "block";
+        $('report-box').innerHTML = '<div class="status-banner warning">⚠️ 파일명 내 숫자가 기재된 파일이 부족하여 번호 연속성을 검사할 수 없습니다.</div>';
+        return;
+    }
+
+    nums.sort((a, b) => a.num - b.num);
+
+    const missing = [];
+    const dup = [];
+
+    for (let i = 1; i < nums.length; i++) {
+        if (nums[i].num === nums[i - 1].num) {
+            dup.push(nums[i].num);
+        }
+        for (let n = nums[i - 1].num + 1; n < nums[i].num; n++) {
+            missing.push(n);
+        }
+    }
+
+    let html = '';
+    if (!missing.length && !dup.length) {
+        html = '<div class="status-banner success">✅ <b>번호 검사 완료:</b> 누락되거나 중복된 데이터 넘버가 없는 완벽한 연속 상태입니다.</div>';
+    } else {
+        html = '<div class="status-banner danger">';
+        if (missing.length) html += `<b>⚠️ 누락된 파일 일련번호:</b> ${missing.join(", ")}<br>`;
+        if (dup.length) html += `<b>🚨 중복된 파일 일련번호:</b> ${dup.join(", ")}`;
+        html += '</div>';
+    }
+
+    html += `
+    <div class="report-summary">
+        일련번호 범위: ${nums[0].num} ~ ${nums[nums.length - 1].num} | 일치 파일 개수: ${nums.length}개
+    </div>`;
+
+    $('report-box').style.display = "block";
+    $('report-box').innerHTML = html;
+};
+
+// 동적 구분자 빌더를 포함한 스마트 병합 로직
+$('merge').onclick = async () => {
+    if (!selected.length) {
+        alert("병합할 파일을 추가해 주세요.");
+        return;
+    }
+
+    $('progress-container').style.display = "block";
+    let total = 0;
+    const parts = [];
+    
+    // 라디오 버튼 선택된 구분자 옵션값 가져오기
+    const sepOption = document.querySelector('input[name="separator"]:checked').value;
+
+    for (let i = 0; i < selected.length; i++) {
+        const file = selected[i];
+        
+        // 옵션이 '파일명 주석 기입'일 때 각 파일 상단에 파일 정보 삽입
+        if (sepOption === 'name') {
+            const headerComment = `/* ==========================================
+   File: ${file.name}
+   ========================================== */
+`;
+            parts.push(new Blob([headerComment], { type: "text/plain" }));
+        }
+
+        parts.push(file);
+        total += file.size;
+
+        // 경계면 가공 조건문
+        if (i < selected.length - 1) {
+            let sepBlob;
+            if (sepOption === 'br') {
+                sepBlob = new Blob(["\n\n"], { type: "text/plain" });
+            } else if (sepOption === 'dash') {
+                sepBlob = new Blob(["\n\n----------------------------------------\n\n"], { type: "text/plain" });
+            } else if (sepOption === 'name') {
+                sepBlob = new Blob(["\n\n\n\n"], { type: "text/plain" });
+            } else {
+                sepBlob = new Blob([""], { type: "text/plain" }); // 'none' 무구분
+            }
+            parts.push(sepBlob);
+        }
+
+        $('bar').style.width = ((i + 1) / selected.length * 100) + "%";
+    }
+
+    mergedBlob = new Blob(parts, { type: "text/plain" });
+
+    if (total < 5 * 1024 * 1024) {
+        mergedText = await mergedBlob.text();
+        $('preview').value = mergedText;
+        $('copy').disabled = false;
+    } else {
+        mergedText = null;
+        $('preview').value = "[안내] 5MB 이상의 대용량 파일 데이터가 결합되어 있으므로 브라우저 버퍼 유지를 위해 미리보기를 차단합니다. 바로 '저장' 버튼을 실행해 주십시오.";
+        $('copy').disabled = true;
+    }
+
+    $('save').disabled = false;
+};
+
+// 클립보드 복사 엔진
+$('copy').onclick = async () => {
+    if (!mergedText) return;
+    try {
+        await navigator.clipboard.writeText(mergedText);
+        alert("병합 결과 텍스트가 복사되었습니다.");
+    } catch(err) {
+        alert("복사 실패. 브라우저 권한 설정을 체크해 주세요.");
+    }
+};
+
+// 즉시 다운로드 엔진 및 백그라운드 가비지 컬렉터
+$('save').onclick = () => {
+    if (!mergedBlob) return;
+
+    const url = URL.createObjectURL(mergedBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "merged_result.txt";
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 3000);
+};
+
+// 초기화 가동
+render();
+</script>
+</body>
+</html>
