@@ -5,80 +5,388 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>고급 텍스트 병합기 + 완성형 유틸리티 패키지</title>
 <style>
-body{margin:0;background:#0f172a;color:#fff;font-family:system-ui,sans-serif;padding:20px}
-.wrap{max-width:1200px;margin:auto;background:rgba(17,24,39,.9);padding:24px;border-radius:20px}
-.drop{border:2px dashed #64748b;padding:30px;border-radius:16px;text-align:center;cursor:pointer}
-.drop.drag{border-color:#60a5fa}
-input,textarea,button{font-family:inherit}
-.search-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-.search{flex:1;min-width:200px;padding:10px;border-radius:10px;border:0;background:#111827;color:#fff}
-.sort-select{padding:10px;border-radius:10px;border:0;background:#334155;color:#fff;cursor:pointer}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-.config-row{display:flex;gap:15px;align-items:center;margin-top:12px;padding:8px;background:#1e293b;border-radius:10px;font-size:14px}
-.config-item{display:flex;align-items:center;gap:6px;cursor:pointer}
-.config-item input{cursor:pointer;accent-color:#2563eb}
-button{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600}
-.primary{background:#2563eb;color:#fff}
-.secondary{background:#334155;color:#fff}
-.danger{background:#dc2626;color:#fff}
-.info,.report{margin-top:10px;color:#cbd5e1}
-.list{background:#111827;margin-top:10px;border-radius:12px;padding:10px;max-height:260px;overflow:auto}
-.item{display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #222;align-items:center}
-.progress{height:14px;background:#1f2937;border-radius:999px;margin-top:10px}
-.bar{height:100%;width:0;background:#2563eb;border-radius:999px}
-textarea{width:100%;height:300px;margin-top:10px;background:#111827;color:#fff;border:0;border-radius:12px;padding:12px;box-sizing:border-box}
-.warn{background:#7f1d1d;padding:10px;border-radius:10px;margin-top:10px}
-.ok{background:#14532d;padding:10px;border-radius:10px;margin-top:10px}
+:root {
+    --primary: #0071e3;
+    --primary-hover: #0077ed;
+    --primary-light: #e8f2fc;
+    --danger: #ff453a;
+    --danger-hover: #ff554b;
+    --success: #34c759;
+    --warning: #ff9500;
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    --panel-bg: rgba(255, 255, 255, 0.65);
+    --panel-border: rgba(255, 255, 255, 0.4);
+    --text-main: #1d1d1f;
+    --text-muted: #86868b;
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    min-height: 100vh;
+    background: var(--bg-gradient);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 30px 20px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Glassmorphism Card Base */
+.glass-card {
+    background: var(--panel-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 20px;
+}
+
+/* Dropzone Area */
+.dropzone-area {
+    border: 2px dashed rgba(0, 113, 227, 0.3);
+    background: rgba(255, 255, 255, 0.4);
+    padding: 40px 20px;
+    border-radius: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dropzone-area:hover, .dropzone-area.dragover {
+    border-color: var(--primary);
+    background: rgba(0, 113, 227, 0.04);
+    transform: scale(0.995);
+}
+.dropzone-area .icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+}
+.dropzone-area p {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+.dropzone-area span {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: block;
+}
+
+/* Control Header Row */
+.control-header-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.search-box {
+    flex: 1;
+    min-width: 250px;
+}
+.search-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    color: var(--text-main);
+    outline: none;
+    transition: all 0.2s;
+}
+.search-box input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+}
+
+.sort-select-box select {
+    padding: 12px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    outline: none;
+    cursor: pointer;
+}
+
+/* Configuration Rows */
+.config-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 10px 4px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+.config-row.bottom-border {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.config-item input[type="radio"], .config-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+/* File List Window */
+.file-window {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    transition: background 0.2s;
+}
+.file-item:last-child { border-bottom: 0; }
+.file-item:hover { background: rgba(255, 255, 255, 0.6); }
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.file-index {
+    color: var(--text-muted);
+    font-weight: 600;
+    min-width: 20px;
+}
+.file-size-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.04);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+/* Buttons System */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+button {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-secondary { background: rgba(0, 0, 0, 0.05); color: var(--text-main); }
+.btn-secondary:hover:not(:disabled) { background: rgba(0, 0, 0, 0.1); transform: translateY(-1px); }
+.btn-danger { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: rgba(255, 69, 58, 0.25); color: var(--danger-hover); }
+
+.btn-icon {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: var(--text-main);
+    font-size: 12px;
+    box-shadow: var(--shadow-sm);
+}
+.btn-icon:hover { background: #fafafa; border-color: rgba(0,0,0,0.15); }
+
+/* Progress Bar */
+.progress-container {
+    height: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--primary);
+    border-radius: 10px;
+    transition: width 0.2s ease;
+}
+
+/* Inspection & Report Panels */
+.report-box { margin-bottom: 20px; }
+.status-banner {
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.status-banner.success { background: rgba(52, 199, 89, 0.15); color: #1e7e34; border: 1px solid rgba(52, 199, 89, 0.2); }
+.status-banner.warning { background: rgba(255, 149, 0, 0.15); color: #b36b00; border: 1px solid rgba(255, 149, 0, 0.2); }
+.status-banner.danger { background: rgba(255, 69, 58, 0.12); color: #d32f2f; border: 1px solid rgba(255, 69, 58, 0.2); }
+
+.report-summary {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-left: 4px;
+}
+
+/* Textarea Preview */
+.preview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+}
+textarea {
+    width: 100%;
+    height: 340px;
+    background: #fff;
+    color: var(--text-main);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--primary); }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
 </style>
 </head>
 <body>
-<div class="wrap">
-<h1>📄 고급 텍스트 파일 병합기</h1>
 
-<div id="drop" class="drop">
-파일을 드래그하거나 클릭하여 선택하세요
-<input id="files" type="file" multiple hidden>
-</div>
+<div class="container">
+    <header>
+        <h1>📄 고급 텍스트 파일 병합기</h1>
+    </header>
 
-<div class="search-row">
-<input id="search" class="search" placeholder="파일명 검색...">
-<select id="sortEngine" class="sort-select">
-<option value="none">정렬 방식 선택 (기본값)</option>
-<option value="name-asc">이름 오름차순 (가-하, A-Z)</option>
-<option value="name-desc">이름 내림차순 (하-가, Z-A)</option>
-<option value="num-asc">파일명 포함 숫자 크기순</option>
-<option value="size-desc">용량 큰 순</option>
-</select>
-</div>
+    <div class="glass-card">
+        <div id="drop" class="dropzone-area">
+            <span class="icon">📥</span>
+            <p>파일을 이 영역에 드래그 앤 드롭하거나 클릭하여 선택하세요.</p>
+            <span>지원 확장자: .txt, .html, .css, .js, .csv, .md, .json</span>
+            <input id="files" type="file" multiple hidden>
+        </div>
+    </div>
 
-<div class="config-row">
-<span>구분자 설정:</span>
-<label class="config-item"><input type="radio" name="separator" value="br" checked> 줄바꿈 두번</label>
-<label class="config-item"><input type="radio" name="separator" value="dash"> 구분선 (---)</label>
-<label class="config-item"><input type="radio" name="separator" value="name"> 파일명 주석 삽입</label>
-</div>
+    <div class="glass-card">
+        <div class="control-header-row">
+            <div class="search-box">
+                <input id="search" placeholder="파일명으로 리스트 검색 및 필터링...">
+            </div>
+            <div class="sort-select-box">
+                <select id="sortEngine">
+                    <option value="none">정렬 방식 선택 (기본: 유저 순서)</option>
+                    <option value="name-asc">이름 오름차순 (A-Z, 가-하)</option>
+                    <option value="name-desc">이름 내림차순 (Z-A, 하-가)</option>
+                    <option value="num-asc">파일명 포함 숫자 순</option>
+                    <option value="size-desc">용량 큰 순</option>
+                </select>
+            </div>
+        </div>
 
-<div class="config-row">
-<label class="config-item" title="줄바꿈이 이상하게 깨진 웹소설 텍스트의 문단을 매끄럽게 이어 붙여 정렬합니다.">
-<input type="checkbox" id="novelMode"> 📖 웹소설 문단/줄바꿈 복원 최적화 필터 활성화
-</label>
-</div>
+        <div class="config-row">
+            <span>파일 간 구분 경계면 설정:</span>
+            <label class="config-item"><input type="radio" name="separator" value="br" checked> 기본 줄바꿈 (\n\n)</label>
+            <label class="config-item"><input type="radio" name="separator" value="dash"> 대시 구분선 (---)</label>
+            <label class="config-item"><input type="radio" name="separator" value="name"> 파일명 주석 기입</label>
+        </div>
 
-<div class="row">
-<button id="merge" class="primary">⚡ 병합</button>
-<button id="dedup" class="secondary" style="background:#047857">✨ 중복 파일 정리</button>
-<button id="copy" class="secondary" disabled>📋 복사</button>
-<button id="save" class="secondary" disabled>💾 저장</button>
-<button id="check" class="secondary">🔍 번호 검사</button>
-<button id="clear" class="danger">🗑 초기화</button>
-</div>
+        <div class="config-row bottom-border">
+            <label class="config-item" title="웹소설 텍스트 추출 시 끊어진 가독성 문단을 자동 정렬 및 줄바꿈 복원합니다.">
+                <input type="checkbox" id="novelMode"> 📖 웹소설 문단/줄바꿈 최적화 모드 활성화
+            </label>
+        </div>
 
-<div id="info" class="info">파일 없음</div>
-<div class="progress"><div id="bar" class="bar"></div></div>
-<div id="report" class="report"></div>
-<div id="list" class="list"></div>
+        <div id="info" class="report-summary" style="margin-bottom: 10px; font-weight: 600;">파일 없음</div>
+        <div id="list" class="file-window"></div>
+    </div>
 
-<textarea id="preview" placeholder="병합 결과 미리보기가 여기에 출력됩니다."></textarea>
+    <div class="btn-row">
+        <button id="merge" class="btn-primary">⚡ 병합</button>
+        <button id="dedup" class="btn-secondary" style="background: rgba(0, 113, 227, 0.1); color: var(--primary);">✨ 중복 파일 정리</button>
+        <button id="copy" class="btn-secondary" disabled>📋 복사</button>
+        <button id="save" class="btn-secondary" disabled>💾 저장</button>
+        <button id="check" class="btn-secondary">🔍 번호 검사</button>
+        <button id="clear" class="btn-danger">🗑 초기화</button>
+    </div>
+
+    <div class="progress-container">
+        <div id="bar" class="progress-bar"></div>
+    </div>
+
+    <div id="report" class="report-box"></div>
+
+    <div class="glass-card">
+        <span class="preview-title">병합 데이터 미리보기</span>
+        <textarea id="preview" readonly placeholder="병합 작업 완료 시 여기에 결과물이 노출됩니다."></textarea>
+    </div>
 </div>
 
 <script>
@@ -86,290 +394,9 @@ let selected=[];
 let mergedBlob=null;
 let mergedText=null;
 
-// 화면이 완전히 그려진 후 요소를 잡고 이벤트를 바인딩하도록 로직 전면 수정 (클릭 에러 완벽 해결)
+// 화면 로드가 완전히 완료된 상태에서 안정적으로 이벤트를 매핑하는 생명주기 고정 (클릭 버그 영구 패치)
 window.addEventListener("DOMContentLoaded", () => {
     const drop = document.getElementById("drop");
     const files = document.getElementById("files");
     const list = document.getElementById("list");
-    const info = document.getElementById("info");
-    const bar = document.getElementById("bar");
-    const report = document.getElementById("report");
-    const preview = document.getElementById("preview");
-    const search = document.getElementById("search");
-    const sortEngine = document.getElementById("sortEngine");
-    const novelMode = document.getElementById("novelMode");
-    const copy = document.getElementById("copy");
-    const save = document.getElementById("save");
-    const clear = document.getElementById("clear");
-    const check = document.getElementById("check");
-    const merge = document.getElementById("merge");
-    const dedup = document.getElementById("dedup");
-
-    // 클릭 이벤트 수정: 가장 직관적이고 버그가 없는 표준addEventListener 방식으로 고정
-    drop.addEventListener("click", () => {
-        files.click();
-    });
-
-    files.addEventListener("change", (e) => {
-        if(e.target.files.length > 0){
-            selected.push(...e.target.files);
-            applySortAndRender();
-        }
-    });
-
-    drop.addEventListener("dragover", e => {
-        e.preventDefault();
-        drop.classList.add("drag");
-    });
-
-    drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
-
-    drop.addEventListener("drop", e => {
-        e.preventDefault();
-        drop.classList.remove("drag");
-        if(e.dataTransfer.files.length > 0){
-            selected.push(...e.dataTransfer.files);
-            applySortAndRender();
-        }
-    });
-
-    // 정렬 엔진 핸들러 함수
-    function applySortAndRender() {
-        const sortType = sortEngine.value;
-        if (sortType === "name-asc") {
-            selected.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-        } else if (sortType === "name-desc") {
-            selected.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true, sensitivity: 'base'}));
-        } else if (sortType === "num-asc") {
-            selected.sort((a, b) => {
-                const numA = a.name.match(/\d+/);
-                const numB = b.name.match(/\d+/);
-                return (numA ? parseInt(numA[0]) : 0) - (numB ? parseInt(numB[0]) : 0);
-            });
-        } else if (sortType === "size-desc") {
-            selected.sort((a, b) => b.size - a.size);
-        }
-        render(search.value);
-    }
-
-    sortEngine.onchange = () => applySortAndRender();
-
-    // 중복 파일 필터링 기능 함수
-    dedup.onclick = () => {
-        if (!selected.length) { alert("목록이 비어있습니다."); return; }
-        const initial = selected.length;
-        const seen = new Set();
-        selected = selected.filter(f => {
-            const key = `${f.name}_${f.size}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-        const diff = initial - selected.length;
-        applySortAndRender();
-        report.innerHTML = diff > 0 
-        ? `<div class="ok">✨ 중복 데이터 스캔 완료: <b>${diff}개</b>의 완전히 겹치는 파일을 제외했습니다.</div>`
-        : `<div class="warn">중복된 파일이 존재하지 않습니다.</div>`;
-    };
-
-    // 화면 출력 렌더러
-    function render(filter=""){
-        list.innerHTML="";
-        let total=0;
-
-        selected.forEach((f,i)=>{
-            total+=f.size;
-
-            if(filter && !f.name.toLowerCase().includes(filter.toLowerCase()))
-                return;
-
-            const row=document.createElement("div");
-            row.className="item";
-            row.innerHTML=`
-            <span><b>${i+1}.</b> ${f.name} <small style="color:#888; margin-left:8px;">(${(f.size/1024).toFixed(1)} KB)</small></span>
-            <span>
-            <button class="up-btn">▲</button>
-            <button class="down-btn">▼</button>
-            <button class="del-btn" style="background:#dc2626; color:#fff">✕</button>
-            </span>`;
-
-            // 버블링 방지를 포함한 내부 버튼 이벤트 바인딩
-            row.querySelector(".up-btn").onclick = (e) => {
-                e.stopPropagation();
-                if(i===0) return;
-                sortEngine.value = "none";
-                [selected[i-1],selected[i]]=[selected[i],selected[i-1]];
-                render(search.value);
-            };
-
-            row.querySelector(".down-btn").onclick = (e) => {
-                e.stopPropagation();
-                if(i>=selected.length-1) return;
-                sortEngine.value = "none";
-                [selected[i+1],selected[i]]=[selected[i],selected[i+1]];
-                render(search.value);
-            };
-
-            row.querySelector(".del-btn").onclick = (e) => {
-                e.stopPropagation();
-                selected.splice(i,1);
-                render(search.value);
-            };
-
-            list.appendChild(row);
-        });
-
-        info.textContent=`파일 ${selected.length}개 | ${(total/1024/1024).toFixed(2)} MB`;
-    }
-
-    search.oninput=e=>render(e.target.value);
-
-    clear.onclick=()=>{
-        selected=[];
-        files.value = "";
-        preview.value="";
-        report.innerHTML="";
-        bar.style.width="0%";
-        sortEngine.value = "none";
-        novelMode.checked = false;
-        render();
-    };
-
-    check.onclick=()=>{
-        const nums=[];
-        for(const f of selected){
-            const m=f.name.match(/(\d+)(?!.*\d)/);
-            if(m){
-                nums.push({num:parseInt(m[1]),raw:m[1]});
-            }
-        }
-
-        if(nums.length<2){
-            report.innerHTML='<div class="warn">파일명에 숫자가 기재된 파일이 부족하여 검사할 수 없습니다.</div>';
-            return;
-        }
-
-        nums.sort((a,b)=>a.num-b.num);
-        const missing=[];
-        const dup=[];
-
-        for(let i=1;i<nums.length;i++){
-            if(nums[i].num===nums[i-1].num) dup.push(nums[i].num);
-            for(let n=nums[i-1].num+1;n<nums[i].num;n++) missing.push(n);
-        }
-
-        let html='';
-        if(!missing.length && !dup.length){
-            html='<div class="ok">✅ 번호 검사 완료: 누락 및 중복이 없는 완벽한 연속 상태입니다.</div>';
-        }else{
-            html='<div class="warn">';
-            if(missing.length) html+=`<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br><br>`;
-            if(dup.length) html+=`<b>🚨 중복된 번호:</b> ${dup.join(", ")}`;
-            html+='</div>';
-        }
-
-        html+=`<div class="info">번호 범위: ${nums[0].num} ~ ${nums[nums.length-1].num} | 검사 완료 대상: ${nums.length}개</div>`;
-        report.innerHTML=html;
-    };
-
-    // 웹소설용 가독성 조절 알고리즘 엔진
-    function cleanNovelLineBreaks(text) {
-        let normalized = text.replace(/\r\n/g, "\n").trim();
-        let lines = normalized.split("\n");
-        let processed = [];
-        let buffer = "";
-
-        for (let line of lines) {
-            let trimmed = line.trim();
-            if (trimmed === "") {
-                if (buffer) { processed.push(buffer); buffer = ""; }
-                processed.push("");
-            } else {
-                if (/^[「\"'『]/.test(trimmed) || /[」\"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
-                    if (buffer) { processed.push(buffer + " " + trimmed); buffer = ""; }
-                    else { processed.push(trimmed); }
-                } else {
-                    buffer = buffer ? buffer + " " + trimmed : trimmed;
-                }
-            }
-        }
-        if (buffer) processed.push(buffer);
-        return processed.join("\n").replace(/\n{3,}/g, "\n\n");
-    }
-
-    // ⚡ 대형 통합 병합 처리부
-    merge.onclick=async()=>{
-        if(!selected.length){ alert("파일을 선택하세요"); return; }
-        let total=0;
-        const sepOption = document.querySelector('input[name="separator"]:checked').value;
-        const isNovel = novelMode.checked;
-
-        if (isNovel) {
-            let tempArray = [];
-            for(let i=0; i<selected.length; i++){
-                let text = await selected[i].text();
-                let processed = cleanNovelLineBreaks(text);
-                if (sepOption === 'name') tempArray.push(`/* === File: ${selected[i].name} === */\n`);
-                tempArray.push(processed);
-                if(i < selected.length-1){
-                    if(sepOption === 'br') tempArray.push("\n\n");
-                    else if(sepOption === 'dash') tempArray.push("\n\n----------------------------------------\n\n");
-                    else if(sepOption === 'name') tempArray.push("\n\n\n\n");
-                }
-                bar.style.width=((i+1)/selected.length*100)+"%";
-            }
-            mergedText = tempArray.join("");
-            mergedBlob = new Blob([mergedText], {type:"text/plain"});
-        } else {
-            const parts=[];
-            for(let i=0;i<selected.length;i++){
-                if (sepOption === 'name') parts.push(new Blob([`/* === File: ${selected[i].name} === */\n`], {type:"text/plain"}));
-                parts.push(selected[i]);
-                if(i<selected.length-1){
-                    if(sepOption === 'br') parts.push("\n\n");
-                    else if(sepOption === 'dash') parts.push("\n\n----------------------------------------\n\n");
-                    else if(sepOption === 'name') parts.push("\n\n\n\n");
-                }
-                total+=selected[i].size;
-                bar.style.width=((i+1)/selected.length*100)+"%";
-            }
-            mergedBlob=new Blob(parts,{type:"text/plain"});
-            mergedText = total < 5*1024*1024 ? await mergedBlob.text() : null;
-        }
-
-        if(mergedBlob.size < 5*1024*1024){
-            if(!mergedText) mergedText = await mergedBlob.text();
-            preview.value=mergedText;
-            copy.disabled=false;
-        }else{
-            preview.value="[5MB 이상 대용량 파일 완료] 브라우저 지연을 방지하기 위해 미리보기를 생략합니다. 즉시 저장 버튼을 눌러주세요.";
-            copy.disabled=true;
-        }
-        save.disabled=false;
-    };
-
-    copy.onclick=async()=>{
-        if(!mergedText)return;
-        await navigator.clipboard.writeText(mergedText);
-        alert("클립보드 복사 완료!");
-    };
-
-    save.onclick=()=>{
-        if(!mergedBlob)return;
-        const url=URL.createObjectURL(mergedBlob);
-        const a=document.createElement("a");
-        a.href=url;
-        a.download="merged_result.txt";
-        document.body.appendChild(a); 
-        a.click();
-        setTimeout(()=>{
-            document.body.removeChild(a); 
-            URL.revokeObjectURL(url);
-        },3000);
-    };
-
-    render();
-});
-</script>
-</body>
-</html>
+    const info = document.
