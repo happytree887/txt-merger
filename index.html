@@ -207,6 +207,10 @@ header h1 {
     padding: 2px 6px;
     border-radius: 6px;
 }
+.file-actions {
+    display: flex;
+    gap: 4px;
+}
 
 /* Buttons System */
 .btn-row {
@@ -274,6 +278,7 @@ button:disabled {
     font-size: 14px;
     font-weight: 500;
     line-height: 1.5;
+    margin-top: 10px;
 }
 .status-banner.success { background: rgba(52, 199, 89, 0.15); color: #1e7e34; border: 1px solid rgba(52, 199, 89, 0.2); }
 .status-banner.warning { background: rgba(255, 149, 0, 0.15); color: #b36b00; border: 1px solid rgba(255, 149, 0, 0.2); }
@@ -369,34 +374,4 @@ textarea:focus { border-color: var(--primary); }
     </div>
 
     <div class="btn-row">
-        <button id="merge" class="btn-primary">⚡ 병합</button>
-        <button id="dedup" class="btn-secondary" style="background: rgba(0, 113, 227, 0.1); color: var(--primary);">✨ 중복 파일 정리</button>
-        <button id="copy" class="btn-secondary" disabled>📋 복사</button>
-        <button id="save" class="btn-secondary" disabled>💾 저장</button>
-        <button id="check" class="btn-secondary">🔍 번호 검사</button>
-        <button id="clear" class="btn-danger">🗑 초기화</button>
-    </div>
-
-    <div class="progress-container">
-        <div id="bar" class="progress-bar"></div>
-    </div>
-
-    <div id="report" class="report-box"></div>
-
-    <div class="glass-card">
-        <span class="preview-title">병합 데이터 미리보기</span>
-        <textarea id="preview" readonly placeholder="병합 작업 완료 시 여기에 결과물이 노출됩니다."></textarea>
-    </div>
-</div>
-
-<script>
-let selected=[];
-let mergedBlob=null;
-let mergedText=null;
-
-// 화면 로드가 완전히 완료된 상태에서 안정적으로 이벤트를 매핑하는 생명주기 고정 (클릭 버그 영구 패치)
-window.addEventListener("DOMContentLoaded", () => {
-    const drop = document.getElementById("drop");
-    const files = document.getElementById("files");
-    const list = document.getElementById("list");
-    const info = document.
+        <button id="merge" class
