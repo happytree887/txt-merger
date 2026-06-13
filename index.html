@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>고급 텍스트 병합기 + 스마트 유틸리티</title>
+<title>고급 텍스트 병합기 + 웹소설/중복 최적화 팩</title>
 <style>
 :root {
     --primary: #0071e3;
@@ -125,7 +125,7 @@ header h1 {
     margin-top: 4px;
 }
 
-/* Search Bar & Auto Sorter Row */
+/* Control Header Row */
 .control-header-row {
     display: flex;
     gap: 10px;
@@ -153,11 +153,6 @@ header h1 {
     box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
 }
 
-.sort-select-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
 .sort-select-box select {
     padding: 12px 16px;
     border: 1px solid rgba(0, 0, 0, 0.08);
@@ -170,24 +165,28 @@ header h1 {
     cursor: pointer;
 }
 
-/* Separation Config Row */
+/* Configuration Rows */
 .config-row {
     display: flex;
     gap: 15px;
     align-items: center;
     padding: 10px 4px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    margin-bottom: 5px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-main);
+}
+.config-row.bottom-border {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
 }
 .config-item {
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.config-item input[type="radio"] {
+.config-item input[type="radio"], .config-item input[type="checkbox"] {
     width: 16px;
     height: 16px;
     accent-color: var(--primary);
@@ -329,7 +328,7 @@ button:disabled {
 }
 textarea {
     width: 100%;
-    height: 320px;
+    height: 340px;
     background: #fff;
     color: var(--text-main);
     border: 1px solid rgba(0, 0, 0, 0.08);
@@ -403,13 +402,22 @@ textarea:focus { border-color: var(--primary); }
             </div>
         </div>
 
-        <!-- 자체 탑재 아이디어: 구분자(구분선) 종류 커스텀 커스터마이징 기능 -->
+        <!-- 고급 필터 옵션 패널 -->
         <div class="config-row">
             <span>파일 간 구분 경계면 설정:</span>
-            <label class="config-item"><input type="radio" name="separator" value="br" checked> 기본 줄바꿈 (\n\n)</label>
+            <label class="config-item"><input type="radio" name="separator" value="br" checked> 기본 줄바꿈 (
+
+)</label>
             <label class="config-item"><input type="radio" name="separator" value="dash"> 대시 구분선 (---)</label>
             <label class="config-item"><input type="radio" name="separator" value="name"> 파일명 주석 기입</label>
             <label class="config-item"><input type="radio" name="separator" value="none"> 구분자 없음</label>
+        </div>
+
+        <div class="config-row bottom-border">
+            <span>텍스트 뷰어 최적화 유틸:</span>
+            <label class="config-item" title="웹소설 텍스트 추출 시 끊어진 가독성 문단을 자동 정렬 및 줄바꿈 복원합니다.">
+                <input type="checkbox" id="novel-mode"> 📖 웹소설 문단/줄바꿈 최적화 모드 활성화
+            </label>
         </div>
 
         <div id="list" class="file-window"></div>
@@ -418,6 +426,7 @@ textarea:focus { border-color: var(--primary); }
     <!-- 제어 툴바 -->
     <div class="btn-row">
         <button id="merge" class="btn-primary">⚡ 병합</button>
+        <button id="dedup" class="btn-secondary" style="background: rgba(0, 113, 227, 0.1); color: var(--primary);">✨ 중복 파일 정리</button>
         <button id="copy" class="btn-secondary" disabled>📋 복사</button>
         <button id="save" class="btn-secondary" disabled>💾 저장</button>
         <button id="check" class="btn-secondary">🔍 번호 검사</button>
@@ -446,7 +455,7 @@ let mergedText = null;
 
 const $ = id => document.getElementById(id);
 
-// 파일 입력 트래킹 구조
+// 파일 입력 구조 핸들링
 $('drop').onclick = () => $('files').click();
 
 $('files').onchange = e => {
@@ -472,7 +481,7 @@ $('drop').addEventListener("drop", e => {
     }
 });
 
-// 자동 정렬 엔진 구현 및 렌더링 스위칭
+// 자동 정렬 기준 판별 및 출력 인터페이스
 function applySortAndRender() {
     const sortType = $('sort-engine').value;
     
@@ -494,10 +503,41 @@ function applySortAndRender() {
     render($('search').value);
 }
 
-// 실시간 정렬 셀렉트 박스 바뀔 때 동작
 $('sort-engine').onchange = () => applySortAndRender();
 
-// 리스트 출력 스크립트 엔진
+// 신규 기능: 이름 및 용량이 완전히 일치하는 중복 파일 실시간 제거 팩
+$('dedup').onclick = () => {
+    if (!selected.length) {
+        alert("정리할 파일 목록이 비어있습니다.");
+        return;
+    }
+    
+    const initialCount = selected.length;
+    const seen = new Set();
+    const uniqueFiles = [];
+    
+    for (const file of selected) {
+        // 파일명 + 파일 바이트 용량 조합키로 중복 무결성 검증
+        const fileKey = `${file.name}_${file.size}`;
+        if (!seen.has(fileKey)) {
+            seen.add(fileKey);
+            uniqueFiles.push(file);
+        }
+    }
+    
+    const removedCount = initialCount - uniqueFiles.length;
+    selected = uniqueFiles;
+    applySortAndRender();
+    
+    $('report-box').style.display = "block";
+    if (removedCount > 0) {
+        $('report-box').innerHTML = `<div class="status-banner success">✨ <b>중복 정리 완료:</b> 이름과 용량이 동일한 중복 파일 <b>${removedCount}개</b>를 안전하게 제외했습니다.</div>`;
+    } else {
+        $('report-box').innerHTML = `<div class="status-banner warning">ℹ️ 목록 내에 중복된 파일 항목이 발견되지 않았습니다.</div>`;
+    }
+};
+
+// 파일 리스트 렌더러
 function render(filter = "") {
     $('list').innerHTML = "";
     let total = 0;
@@ -511,7 +551,6 @@ function render(filter = "") {
         const row = document.createElement("div");
         row.className = "file-item";
         
-        // 가독성 높은 용량 환산 표기 변환
         const displaySize = f.size > 1024 * 1024 
             ? `${(f.size / 1024 / 1024).toFixed(2)} MB` 
             : `${(f.size / 1024).toFixed(1)} KB`;
@@ -535,7 +574,6 @@ function render(filter = "") {
         $('list').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:14px;">추가된 파일이 없습니다.</div>';
     }
 
-    // 통계 패널 업데이트 (평균치 신설 추가)
     $('stat-count').textContent = `${selected.length}개`;
     $('stat-size').textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
     
@@ -543,11 +581,11 @@ function render(filter = "") {
     $('stat-avg').textContent = `${avgKB} KB`;
 }
 
-// 순서 핸들링 시스템
+// 순서 조정 스크립트 모듈
 window.up = (i, e) => {
     if(e) e.stopPropagation();
     if (i === 0) return;
-    $('sort-engine').value = "none"; // 순서를 수동 변경하면 정렬 기준을 초기화 시켜 꼬임 방지
+    $('sort-engine').value = "none";
     [selected[i - 1], selected[i]] = [selected[i], selected[i - 1]];
     render($('search').value);
 }
@@ -568,7 +606,7 @@ window.delFile = (i, e) => {
 
 $('search').oninput = e => render(e.target.value);
 
-// 클리어 시 완벽 세팅 복구 구현 (인풋 .value 비우기 포함 유지)
+// 클리어 함수 (입력 버그 방지 캐시 초기화 완전 포함)
 $('clear').onclick = () => {
     selected = [];
     mergedBlob = null;
@@ -577,6 +615,7 @@ $('clear').onclick = () => {
     $('preview').value = "";
     $('search').value = "";
     $('sort-engine').value = "none";
+    $('novel-mode').checked = false;
     
     $('report-box').innerHTML = "";
     $('report-box').style.display = "none";
@@ -590,7 +629,7 @@ $('clear').onclick = () => {
     render();
 };
 
-// 일련번호 연속 무결성 체커 검증 도구
+// 무결성 시퀀스 검사엔진
 $('check').onclick = () => {
     if (!selected.length) {
         $('report-box').style.display = "block";
@@ -608,7 +647,7 @@ $('check').onclick = () => {
 
     if (nums.length < 2) {
         $('report-box').style.display = "block";
-        $('report-box').innerHTML = '<div class="status-banner warning">⚠️ 파일명 내 숫자가 기재된 파일이 부족하여 번호 연속성을 검사할 수 없습니다.</div>';
+        $('report-box').innerHTML = '<div class="status-banner warning">⚠️ 일련번호를 판별할 파일명 속 숫자가 부족합니다.</div>';
         return;
     }
 
@@ -628,97 +667,200 @@ $('check').onclick = () => {
 
     let html = '';
     if (!missing.length && !dup.length) {
-        html = '<div class="status-banner success">✅ <b>번호 검사 완료:</b> 누락되거나 중복된 데이터 넘버가 없는 완벽한 연속 상태입니다.</div>';
+        html = '<div class="status-banner success">✅ <b>번호 분석 완료:</b> 일련번호에 끊어짐이나 누락, 겹침 현상이 발견되지 않았습니다.</div>';
     } else {
         html = '<div class="status-banner danger">';
-        if (missing.length) html += `<b>⚠️ 누락된 파일 일련번호:</b> ${missing.join(", ")}<br>`;
-        if (dup.length) html += `<b>🚨 중복된 파일 일련번호:</b> ${dup.join(", ")}`;
+        if (missing.length) html += `<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br>`;
+        if (dup.length) html += `<b>🚨 중복된 파일 번호:</b> ${dup.join(", ")}`;
         html += '</div>';
     }
 
-    html += `
-    <div class="report-summary">
-        일련번호 범위: ${nums[0].num} ~ ${nums[nums.length - 1].num} | 일치 파일 개수: ${nums.length}개
-    </div>`;
-
+    html += `<div class="report-summary">탐색 범위: ${nums[0].num} ~ ${nums[nums.length - 1].num} | 패턴 매칭 파일: ${nums.length}개</div>`;
     $('report-box').style.display = "block";
     $('report-box').innerHTML = html;
 };
 
-// 동적 구분자 빌더를 포함한 스마트 병합 로직
+// 신규 기능: 웹소설 전용 가독성 문단 정렬 엔진 기능 함수
+function processNovelText(text) {
+    // 1. 윈도우 스타일 줄바꿈 정규화 및 과도한 공백 다듬기
+    let normalized = text.replace(/
+/g, "
+").trim();
+    
+    // 2. 줄 단위로 단편 분할
+    let lines = normalized.split("
+");
+    let processedLines = [];
+    let paragraphBuffer = "";
+
+    for (let line of lines) {
+        let trimmed = line.trim();
+        
+        if (trimmed === "") {
+            // 빈 줄을 만난 경우 버퍼에 쌓여있던 문단을 완결 짓고 공백선 유지
+            if (paragraphBuffer) {
+                processedLines.push(paragraphBuffer);
+                paragraphBuffer = "";
+            }
+            processedLines.push(""); // 단락 구분을 위한 공백 라인 보존
+        } else {
+            // 대화문(「」, "", '')이나 문장 부호(. ! ?)로 끝나거나, 글자 수가 짧으면 독립 문단으로 인정
+            if (/^[「"'『]/.test(trimmed) || /[」"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
+                if (paragraphBuffer) {
+                    processedLines.push(paragraphBuffer + " " + trimmed);
+                    paragraphBuffer = "";
+                } else {
+                    processedLines.push(trimmed);
+                }
+            } else {
+                // 웹페이지 크롤링 오류나 뷰어 왜곡으로 문장 도중 강제 개행된 경우 개행 제거 후 이어 붙이기
+                if (paragraphBuffer) {
+                    paragraphBuffer += " " + trimmed;
+                } else {
+                    paragraphBuffer = trimmed;
+                }
+            }
+        }
+    }
+    if (paragraphBuffer) {
+        processedLines.push(paragraphBuffer);
+    }
+    
+    // 3. 문단별로 다시 결합하되 웹소설 특유의 시원한 가독성을 위해 문단 간 여백(
+
+) 규칙 배치 및 다중 공백 정리
+    return processedLines.join("
+").replace(/
+{3,}/g, "
+
+");
+}
+
+// 통합 고도화 병합 엔진 파트
 $('merge').onclick = async () => {
     if (!selected.length) {
-        alert("병합할 파일을 추가해 주세요.");
+        alert("병합할 텍스트 파일을 추가해 주세요.");
         return;
     }
 
     $('progress-container').style.display = "block";
-    let total = 0;
-    const parts = [];
-    
-    // 라디오 버튼 선택된 구분자 옵션값 가져오기
     const sepOption = document.querySelector('input[name="separator"]:checked').value;
+    const isNovelMode = $('novel-mode').checked;
 
-    for (let i = 0; i < selected.length; i++) {
-        const file = selected[i];
-        
-        // 옵션이 '파일명 주석 기입'일 때 각 파일 상단에 파일 정보 삽입
-        if (sepOption === 'name') {
-            const headerComment = `/* ==========================================
+    // 만약 웹소설 가독성 조절 모드가 활성화된 경우 문자열 처리가 직접 동반되어야 하므로 스트리밍 가공 빌더 적용
+    if (isNovelMode) {
+        let combinedTextArray = [];
+        let totalFiles = selected.length;
+
+        for (let i = 0; i < totalFiles; i++) {
+            let fileText = await selected[i].text();
+            
+            // 각 파일별 웹소설 줄바꿈 엔진 필터링 투입
+            let cleanedText = processNovelText(fileText);
+
+            if (sepOption === 'name') {
+                combinedTextArray.push(`/* ==========================================
+   File: ${selected[i].name}
+   ========================================== */
+`);
+            }
+            
+            combinedTextArray.push(cleanedText);
+
+            if (i < totalFiles - 1) {
+                if (sepOption === 'br') combinedTextArray.push("
+
+");
+                else if (sepOption === 'dash') combinedTextArray.push("
+
+----------------------------------------
+
+");
+                else if (sepOption === 'name') combinedTextArray.push("
+
+
+
+");
+            }
+            $('bar').style.width = ((i + 1) / totalFiles * 100) + "%";
+        }
+
+        mergedText = combinedTextArray.join("");
+        mergedBlob = new Blob([mergedText], { type: "text/plain" });
+
+        if (mergedBlob.size < 5 * 1024 * 1024) {
+            $('preview').value = mergedText;
+            $('copy').disabled = false;
+        } else {
+            $('preview').value = "[용량 안내] 웹소설 최적화 필터가 적용된 5MB 이상의 대용량 텍스트 파일입니다. 브라우저 지연 방지를 위해 즉시 다운로드 전용 래퍼로 우회합니다. '저장' 단추를 사용해 주세요.";
+            $('copy').disabled = true;
+        }
+    } else {
+        // [일반 고속 모드] 대용량도 렉 없이 매핑하는 바이너리 덩어리 Blob 결합 처리 구동
+        let total = 0;
+        const parts = [];
+
+        for (let i = 0; i < selected.length; i++) {
+            const file = selected[i];
+            if (sepOption === 'name') {
+                const headerComment = `/* ==========================================
    File: ${file.name}
    ========================================== */
 `;
-            parts.push(new Blob([headerComment], { type: "text/plain" }));
-        }
-
-        parts.push(file);
-        total += file.size;
-
-        // 경계면 가공 조건문
-        if (i < selected.length - 1) {
-            let sepBlob;
-            if (sepOption === 'br') {
-                sepBlob = new Blob(["\n\n"], { type: "text/plain" });
-            } else if (sepOption === 'dash') {
-                sepBlob = new Blob(["\n\n----------------------------------------\n\n"], { type: "text/plain" });
-            } else if (sepOption === 'name') {
-                sepBlob = new Blob(["\n\n\n\n"], { type: "text/plain" });
-            } else {
-                sepBlob = new Blob([""], { type: "text/plain" }); // 'none' 무구분
+                parts.push(new Blob([headerComment], { type: "text/plain" }));
             }
-            parts.push(sepBlob);
+
+            parts.push(file);
+            total += file.size;
+
+            if (i < selected.length - 1) {
+                let sepBlob;
+                if (sepOption === 'br') sepBlob = new Blob(["
+
+"], { type: "text/plain" });
+                else if (sepOption === 'dash') sepBlob = new Blob(["
+
+----------------------------------------
+
+"], { type: "text/plain" });
+                else if (sepOption === 'name') sepBlob = new Blob(["
+
+
+
+"], { type: "text/plain" });
+                else sepBlob = new Blob([""], { type: "text/plain" });
+                parts.push(sepBlob);
+            }
+            $('bar').style.width = ((i + 1) / selected.length * 100) + "%";
         }
 
-        $('bar').style.width = ((i + 1) / selected.length * 100) + "%";
-    }
+        mergedBlob = new Blob(parts, { type: "text/plain" });
 
-    mergedBlob = new Blob(parts, { type: "text/plain" });
-
-    if (total < 5 * 1024 * 1024) {
-        mergedText = await mergedBlob.text();
-        $('preview').value = mergedText;
-        $('copy').disabled = false;
-    } else {
-        mergedText = null;
-        $('preview').value = "[안내] 5MB 이상의 대용량 파일 데이터가 결합되어 있으므로 브라우저 버퍼 유지를 위해 미리보기를 차단합니다. 바로 '저장' 버튼을 실행해 주십시오.";
-        $('copy').disabled = true;
+        if (total < 5 * 1024 * 1024) {
+            mergedText = await mergedBlob.text();
+            $('preview').value = mergedText;
+            $('copy').disabled = false;
+        } else {
+            mergedText = null;
+            $('preview').value = "[안내] 5MB 이상의 대용량 파일 데이터입니다. 미리보기를 비활성화하니 바로 '저장' 버튼을 실행해 주십시오.";
+            $('copy').disabled = true;
+        }
     }
 
     $('save').disabled = false;
 };
 
-// 클립보드 복사 엔진
+// 복사 및 파일 저장
 $('copy').onclick = async () => {
     if (!mergedText) return;
     try {
         await navigator.clipboard.writeText(mergedText);
-        alert("병합 결과 텍스트가 복사되었습니다.");
+        alert("병합 결과가 클립보드에 복사되었습니다.");
     } catch(err) {
         alert("복사 실패. 브라우저 권한 설정을 체크해 주세요.");
     }
 };
 
-// 즉시 다운로드 엔진 및 백그라운드 가비지 컬렉터
 $('save').onclick = () => {
     if (!mergedBlob) return;
 
@@ -735,7 +877,6 @@ $('save').onclick = () => {
     }, 3000);
 };
 
-// 초기화 가동
 render();
 </script>
 </body>
