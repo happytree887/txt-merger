@@ -80,7 +80,6 @@ header h1 {
     background: rgba(0, 113, 227, 0.04);
     transform: scale(0.995);
 }
-/* [★버그 수정 패치] 자식 엘리먼트들이 마우스 이벤트를 가로채지 못하도록 락 해제 */
 .dropzone-area * {
     pointer-events: none;
 }
@@ -336,7 +335,6 @@ textarea:focus { border-color: var(--primary); }
     </header>
 
     <div class="glass-card">
-        <!-- [★마운트 패치] 인풋 엘리먼트를 드롭 존 영역 내부의 맨 위 형제 격으로 순서 조정 완료 -->
         <div id="drop" class="dropzone-area">
             <input id="files" type="file" multiple hidden>
             <span class="icon">📥</span>
@@ -422,8 +420,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const merge = document.getElementById("merge");
     const dedup = document.getElementById("dedup");
 
-    // [★클릭 버그 영구 패치] 클릭 타겟팅 강제 매핑 체계 고정
-    drop.addEventListener("click", (e) => {
+    drop.addEventListener("click", () => {
         files.click();
     });
 
@@ -581,7 +578,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
         let html = '';
         if (!missing.length && !dup.length) {
-            html = '<div class="status-banner success">✅ 번호 검사 완료: 누락 및 중복이 없는 순수한 연속 스트리밍 상태입니다.</div>';
+            html = '<div class="status-banner success">✅ 번호 검사 완료: 누락 및 중복이 없는 순수한 연속 상태입니다.</div>';
         } else {
             html = '<div class="status-banner warning">';
             if (missing.length) html += `<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br><br>`;
@@ -593,6 +590,7 @@ window.addEventListener("DOMContentLoaded", () => {
         report.innerHTML = html;
     };
 
+    // [★알고리즘 대폭 개선] 웹소설 줄바꿈 복원/유지 필터 엔진 개량형
     function cleanNovelLineBreaks(text) {
         let normalized = text.replace(/\r\n/g, "\n").trim();
         let lines = normalized.split("\n");
@@ -601,19 +599,35 @@ window.addEventListener("DOMContentLoaded", () => {
 
         for (let line of lines) {
             let trimmed = line.trim();
+            
+            // 1. 빈 줄을 만나면 이전 버퍼를 비워 문단을 나누고 확실하게 빈 줄 처리
             if (trimmed === "") {
                 if (buffer) { processed.push(buffer); buffer = ""; }
                 processed.push("");
-            } else {
-                if (/^[「\"'『]/.test(trimmed) || /[」\"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
-                    if (buffer) { processed.push(buffer + " " + trimmed); buffer = ""; }
-                    else { processed.push(trimmed); }
+                continue;
+            }
+
+            // 2. 대화 기호 시작, 문장 종결 부호, 혹은 너무 짧은 행은 문단의 끝 또는 시작으로 판단
+            let isDialogStart = /^[「\"'『〈〈\-\–]/.test(trimmed);
+            let isDialogEnd = /[」\"'』〉〉\.!\?~…]$/.test(trimmed);
+            let isShortLine = trimmed.length < 30;
+
+            if (isDialogStart || isDialogEnd || isShortLine) {
+                if (buffer) {
+                    // 버퍼가 있고 현재 행이 대화 시작이거나 너무 짧으면 앞 문장과 이은 뒤 저장
+                    processed.push(buffer + " " + trimmed);
+                    buffer = "";
                 } else {
-                    buffer = buffer ? buffer + " " + trimmed : trimmed;
+                    processed.push(trimmed);
                 }
+            } else {
+                // 3. 서술문이 애매하게 잘린 일반 문장행은 버퍼에 계속 이어 붙임
+                buffer = buffer ? buffer + " " + trimmed : trimmed;
             }
         }
         if (buffer) processed.push(buffer);
+        
+        // 무분별한 빈 줄 중첩(\n\n\n 등) 현상만 깔끔하게 제거
         return processed.join("\n").replace(/\n{3,}/g, "\n\n");
     }
 
@@ -640,6 +654,7 @@ window.addEventListener("DOMContentLoaded", () => {
             mergedText = tempArray.join("");
             mergedBlob = new Blob([mergedText], { type: "text/plain;charset=utf-8" });
         } else {
+            // [★일반 모드] 사용자가 원한 원본 훼손 없는 완벽한 원본 바이너리 병합
             const parts = [];
             for (let i = 0; i < selected.length; i++) {
                 if (sepOption === 'name') parts.push(new Blob([`/* === File: ${selected[i].name} === */\n`], { type: "text/plain;charset=utf-8" }));
