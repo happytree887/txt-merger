@@ -86,285 +86,290 @@ let selected=[];
 let mergedBlob=null;
 let mergedText=null;
 
-// 1. 순수 원본 아이디 트리거 매핑 체계 (업로드 정상화 완료)
-const drop = document.getElementById("drop");
-const files = document.getElementById("files");
-const list = document.getElementById("list");
-const info = document.getElementById("info");
-const bar = document.getElementById("bar");
-const report = document.getElementById("report");
-const preview = document.getElementById("preview");
-const search = document.getElementById("search");
-const sortEngine = document.getElementById("sortEngine");
-const novelMode = document.getElementById("novelMode");
-const copy = document.getElementById("copy");
-const save = document.getElementById("save");
-const clear = document.getElementById("clear");
-const check = document.getElementById("check");
-const merge = document.getElementById("merge");
-const dedup = document.getElementById("dedup");
+// 화면이 완전히 그려진 후 요소를 잡고 이벤트를 바인딩하도록 로직 전면 수정 (클릭 에러 완벽 해결)
+window.addEventListener("DOMContentLoaded", () => {
+    const drop = document.getElementById("drop");
+    const files = document.getElementById("files");
+    const list = document.getElementById("list");
+    const info = document.getElementById("info");
+    const bar = document.getElementById("bar");
+    const report = document.getElementById("report");
+    const preview = document.getElementById("preview");
+    const search = document.getElementById("search");
+    const sortEngine = document.getElementById("sortEngine");
+    const novelMode = document.getElementById("novelMode");
+    const copy = document.getElementById("copy");
+    const save = document.getElementById("save");
+    const clear = document.getElementById("clear");
+    const check = document.getElementById("check");
+    const merge = document.getElementById("merge");
+    const dedup = document.getElementById("dedup");
 
-drop.onclick=()=>files.click();
+    // 클릭 이벤트 수정: 가장 직관적이고 버그가 없는 표준addEventListener 방식으로 고정
+    drop.addEventListener("click", () => {
+        files.click();
+    });
 
-files.onchange=e=>{
-if(e.target.files.length > 0){
-selected.push(...e.target.files);
-applySortAndRender();
-}
-};
+    files.addEventListener("change", (e) => {
+        if(e.target.files.length > 0){
+            selected.push(...e.target.files);
+            applySortAndRender();
+        }
+    });
 
-drop.addEventListener("dragover",e=>{
-e.preventDefault();
-drop.classList.add("drag");
+    drop.addEventListener("dragover", e => {
+        e.preventDefault();
+        drop.classList.add("drag");
+    });
+
+    drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+
+    drop.addEventListener("drop", e => {
+        e.preventDefault();
+        drop.classList.remove("drag");
+        if(e.dataTransfer.files.length > 0){
+            selected.push(...e.dataTransfer.files);
+            applySortAndRender();
+        }
+    });
+
+    // 정렬 엔진 핸들러 함수
+    function applySortAndRender() {
+        const sortType = sortEngine.value;
+        if (sortType === "name-asc") {
+            selected.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        } else if (sortType === "name-desc") {
+            selected.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true, sensitivity: 'base'}));
+        } else if (sortType === "num-asc") {
+            selected.sort((a, b) => {
+                const numA = a.name.match(/\d+/);
+                const numB = b.name.match(/\d+/);
+                return (numA ? parseInt(numA[0]) : 0) - (numB ? parseInt(numB[0]) : 0);
+            });
+        } else if (sortType === "size-desc") {
+            selected.sort((a, b) => b.size - a.size);
+        }
+        render(search.value);
+    }
+
+    sortEngine.onchange = () => applySortAndRender();
+
+    // 중복 파일 필터링 기능 함수
+    dedup.onclick = () => {
+        if (!selected.length) { alert("목록이 비어있습니다."); return; }
+        const initial = selected.length;
+        const seen = new Set();
+        selected = selected.filter(f => {
+            const key = `${f.name}_${f.size}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        const diff = initial - selected.length;
+        applySortAndRender();
+        report.innerHTML = diff > 0 
+        ? `<div class="ok">✨ 중복 데이터 스캔 완료: <b>${diff}개</b>의 완전히 겹치는 파일을 제외했습니다.</div>`
+        : `<div class="warn">중복된 파일이 존재하지 않습니다.</div>`;
+    };
+
+    // 화면 출력 렌더러
+    function render(filter=""){
+        list.innerHTML="";
+        let total=0;
+
+        selected.forEach((f,i)=>{
+            total+=f.size;
+
+            if(filter && !f.name.toLowerCase().includes(filter.toLowerCase()))
+                return;
+
+            const row=document.createElement("div");
+            row.className="item";
+            row.innerHTML=`
+            <span><b>${i+1}.</b> ${f.name} <small style="color:#888; margin-left:8px;">(${(f.size/1024).toFixed(1)} KB)</small></span>
+            <span>
+            <button class="up-btn">▲</button>
+            <button class="down-btn">▼</button>
+            <button class="del-btn" style="background:#dc2626; color:#fff">✕</button>
+            </span>`;
+
+            // 버블링 방지를 포함한 내부 버튼 이벤트 바인딩
+            row.querySelector(".up-btn").onclick = (e) => {
+                e.stopPropagation();
+                if(i===0) return;
+                sortEngine.value = "none";
+                [selected[i-1],selected[i]]=[selected[i],selected[i-1]];
+                render(search.value);
+            };
+
+            row.querySelector(".down-btn").onclick = (e) => {
+                e.stopPropagation();
+                if(i>=selected.length-1) return;
+                sortEngine.value = "none";
+                [selected[i+1],selected[i]]=[selected[i],selected[i+1]];
+                render(search.value);
+            };
+
+            row.querySelector(".del-btn").onclick = (e) => {
+                e.stopPropagation();
+                selected.splice(i,1);
+                render(search.value);
+            };
+
+            list.appendChild(row);
+        });
+
+        info.textContent=`파일 ${selected.length}개 | ${(total/1024/1024).toFixed(2)} MB`;
+    }
+
+    search.oninput=e=>render(e.target.value);
+
+    clear.onclick=()=>{
+        selected=[];
+        files.value = "";
+        preview.value="";
+        report.innerHTML="";
+        bar.style.width="0%";
+        sortEngine.value = "none";
+        novelMode.checked = false;
+        render();
+    };
+
+    check.onclick=()=>{
+        const nums=[];
+        for(const f of selected){
+            const m=f.name.match(/(\d+)(?!.*\d)/);
+            if(m){
+                nums.push({num:parseInt(m[1]),raw:m[1]});
+            }
+        }
+
+        if(nums.length<2){
+            report.innerHTML='<div class="warn">파일명에 숫자가 기재된 파일이 부족하여 검사할 수 없습니다.</div>';
+            return;
+        }
+
+        nums.sort((a,b)=>a.num-b.num);
+        const missing=[];
+        const dup=[];
+
+        for(let i=1;i<nums.length;i++){
+            if(nums[i].num===nums[i-1].num) dup.push(nums[i].num);
+            for(let n=nums[i-1].num+1;n<nums[i].num;n++) missing.push(n);
+        }
+
+        let html='';
+        if(!missing.length && !dup.length){
+            html='<div class="ok">✅ 번호 검사 완료: 누락 및 중복이 없는 완벽한 연속 상태입니다.</div>';
+        }else{
+            html='<div class="warn">';
+            if(missing.length) html+=`<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br><br>`;
+            if(dup.length) html+=`<b>🚨 중복된 번호:</b> ${dup.join(", ")}`;
+            html+='</div>';
+        }
+
+        html+=`<div class="info">번호 범위: ${nums[0].num} ~ ${nums[nums.length-1].num} | 검사 완료 대상: ${nums.length}개</div>`;
+        report.innerHTML=html;
+    };
+
+    // 웹소설용 가독성 조절 알고리즘 엔진
+    function cleanNovelLineBreaks(text) {
+        let normalized = text.replace(/\r\n/g, "\n").trim();
+        let lines = normalized.split("\n");
+        let processed = [];
+        let buffer = "";
+
+        for (let line of lines) {
+            let trimmed = line.trim();
+            if (trimmed === "") {
+                if (buffer) { processed.push(buffer); buffer = ""; }
+                processed.push("");
+            } else {
+                if (/^[「\"'『]/.test(trimmed) || /[」\"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
+                    if (buffer) { processed.push(buffer + " " + trimmed); buffer = ""; }
+                    else { processed.push(trimmed); }
+                } else {
+                    buffer = buffer ? buffer + " " + trimmed : trimmed;
+                }
+            }
+        }
+        if (buffer) processed.push(buffer);
+        return processed.join("\n").replace(/\n{3,}/g, "\n\n");
+    }
+
+    // ⚡ 대형 통합 병합 처리부
+    merge.onclick=async()=>{
+        if(!selected.length){ alert("파일을 선택하세요"); return; }
+        let total=0;
+        const sepOption = document.querySelector('input[name="separator"]:checked').value;
+        const isNovel = novelMode.checked;
+
+        if (isNovel) {
+            let tempArray = [];
+            for(let i=0; i<selected.length; i++){
+                let text = await selected[i].text();
+                let processed = cleanNovelLineBreaks(text);
+                if (sepOption === 'name') tempArray.push(`/* === File: ${selected[i].name} === */\n`);
+                tempArray.push(processed);
+                if(i < selected.length-1){
+                    if(sepOption === 'br') tempArray.push("\n\n");
+                    else if(sepOption === 'dash') tempArray.push("\n\n----------------------------------------\n\n");
+                    else if(sepOption === 'name') tempArray.push("\n\n\n\n");
+                }
+                bar.style.width=((i+1)/selected.length*100)+"%";
+            }
+            mergedText = tempArray.join("");
+            mergedBlob = new Blob([mergedText], {type:"text/plain"});
+        } else {
+            const parts=[];
+            for(let i=0;i<selected.length;i++){
+                if (sepOption === 'name') parts.push(new Blob([`/* === File: ${selected[i].name} === */\n`], {type:"text/plain"}));
+                parts.push(selected[i]);
+                if(i<selected.length-1){
+                    if(sepOption === 'br') parts.push("\n\n");
+                    else if(sepOption === 'dash') parts.push("\n\n----------------------------------------\n\n");
+                    else if(sepOption === 'name') parts.push("\n\n\n\n");
+                }
+                total+=selected[i].size;
+                bar.style.width=((i+1)/selected.length*100)+"%";
+            }
+            mergedBlob=new Blob(parts,{type:"text/plain"});
+            mergedText = total < 5*1024*1024 ? await mergedBlob.text() : null;
+        }
+
+        if(mergedBlob.size < 5*1024*1024){
+            if(!mergedText) mergedText = await mergedBlob.text();
+            preview.value=mergedText;
+            copy.disabled=false;
+        }else{
+            preview.value="[5MB 이상 대용량 파일 완료] 브라우저 지연을 방지하기 위해 미리보기를 생략합니다. 즉시 저장 버튼을 눌러주세요.";
+            copy.disabled=true;
+        }
+        save.disabled=false;
+    };
+
+    copy.onclick=async()=>{
+        if(!mergedText)return;
+        await navigator.clipboard.writeText(mergedText);
+        alert("클립보드 복사 완료!");
+    };
+
+    save.onclick=()=>{
+        if(!mergedBlob)return;
+        const url=URL.createObjectURL(mergedBlob);
+        const a=document.createElement("a");
+        a.href=url;
+        a.download="merged_result.txt";
+        document.body.appendChild(a); 
+        a.click();
+        setTimeout(()=>{
+            document.body.removeChild(a); 
+            URL.revokeObjectURL(url);
+        },3000);
+    };
+
+    render();
 });
-
-drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
-
-drop.addEventListener("drop",e=>{
-e.preventDefault();
-drop.classList.remove("drag");
-if(e.dataTransfer.files.length > 0){
-selected.push(...e.dataTransfer.files);
-applySortAndRender();
-}
-});
-
-// 정렬 엔진 핸들러 함수
-function applySortAndRender() {
-const sortType = sortEngine.value;
-if (sortType === "name-asc") {
-selected.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-} else if (sortType === "name-desc") {
-selected.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true, sensitivity: 'base'}));
-} else if (sortType === "num-asc") {
-selected.sort((a, b) => {
-const numA = a.name.match(/\d+/);
-const numB = b.name.match(/\d+/);
-return (numA ? parseInt(numA[0]) : 0) - (numB ? parseInt(numB[0]) : 0);
-});
-} else if (sortType === "size-desc") {
-selected.sort((a, b) => b.size - a.size);
-}
-render(search.value);
-}
-
-sortEngine.onchange = () => applySortAndRender();
-
-// 중복 파일 필터링 기능 함수
-dedup.onclick = () => {
-if (!selected.length) { alert("목록이 비어있습니다."); return; }
-const initial = selected.length;
-const seen = new Set();
-selected = selected.filter(f => {
-const key = `${f.name}_${f.size}`;
-if (seen.has(key)) return false;
-seen.add(key);
-return true;
-});
-const diff = initial - selected.length;
-applySortAndRender();
-report.innerHTML = diff > 0 
-? `<div class="ok">✨ 중복 데이터 스캔 완료: <b>${diff}개</b>의 완전히 겹치는 파일을 제외했습니다.</div>`
-: `<div class="warn">중복된 파일이 존재하지 않습니다.</div>`;
-};
-
-// 화면 출력 렌더러
-function render(filter=""){
-list.innerHTML="";
-let total=0;
-
-selected.forEach((f,i)=>{
-total+=f.size;
-
-if(filter && !f.name.toLowerCase().includes(filter.toLowerCase()))
-return;
-
-const row=document.createElement("div");
-row.className="item";
-row.innerHTML=`
-<span><b>${i+1}.</b> ${f.name} <small style="color:#888; margin-left:8px;">(${(f.size/1024).toFixed(1)} KB)</small></span>
-<span>
-<button onclick="up(${i}, event)">▲</button>
-<button onclick="down(${i}, event)">▼</button>
-<button onclick="delFile(${i}, event)" style="background:#dc2626; color:#fff">✕</button>
-</span>`;
-
-list.appendChild(row);
-});
-
-info.textContent=`파일 ${selected.length}개 | ${(total/1024/1024).toFixed(2)} MB`;
-}
-
-window.up=(i, e)=>{
-if(e) e.stopPropagation();
-if(i===0)return;
-sortEngine.value = "none";
-[selected[i-1],selected[i]]=[selected[i],selected[i-1]];
-render(search.value);
-}
-
-window.down=(i, e)=>{
-if(e) e.stopPropagation();
-if(i>=selected.length-1)return;
-sortEngine.value = "none";
-[selected[i+1],selected[i]]=[selected[i],selected[i-1+1]];
-render(search.value);
-}
-
-window.delFile=(i, e)=>{
-if(e) e.stopPropagation();
-selected.splice(i,1);
-render(search.value);
-}
-
-search.oninput=e=>render(e.target.value);
-
-clear.onclick=()=>{
-selected=[];
-files.value = "";
-preview.value="";
-report.innerHTML="";
-bar.style.width="0%";
-sortEngine.value = "none";
-novelMode.checked = false;
-render();
-};
-
-check.onclick=()=>{
-const nums=[];
-for(const f of selected){
-const m=f.name.match(/(\d+)(?!.*\d)/);
-if(m){
-nums.push({num:parseInt(m[1]),raw:m[1]});
-}
-}
-
-if(nums.length<2){
-report.innerHTML='<div class="warn">파일명에 숫자가 기재된 파일이 부족하여 검사할 수 없습니다.</div>';
-return;
-}
-
-nums.sort((a,b)=>a.num-b.num);
-const missing=[];
-const dup=[];
-
-for(let i=1;i<nums.length;i++){
-if(nums[i].num===nums[i-1].num) dup.push(nums[i].num);
-for(let n=nums[i-1].num+1;n<nums[i].num;n++) missing.push(n);
-}
-
-let html='';
-if(!missing.length && !dup.length){
-html='<div class="ok">✅ 번호 검사 완료: 누락 및 중복이 없는 완벽한 연속 상태입니다.</div>';
-}else{
-html='<div class="warn">';
-if(missing.length) html+=`<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br><br>`;
-if(dup.length) html+=`<b>🚨 중복된 번호:</b> ${dup.join(", ")}`;
-html+='</div>';
-}
-
-html+=`<div class="info">번호 범위: ${nums[0].num} ~ ${nums[nums.length-1].num} | 검사 완료 대상: ${nums.length}개</div>`;
-report.innerHTML=html;
-};
-
-// 웹소설용 가독성 조절 알고리즘 엔진
-function cleanNovelLineBreaks(text) {
-let normalized = text.replace(/\r\n/g, "\n").trim();
-let lines = normalized.split("\n");
-let processed = [];
-let buffer = "";
-
-for (let line of lines) {
-let trimmed = line.trim();
-if (trimmed === "") {
-if (buffer) { processed.push(buffer); buffer = ""; }
-processed.push("");
-} else {
-if (/^[「\"'『]/.test(trimmed) || /[」\"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
-if (buffer) { processed.push(buffer + " " + trimmed); buffer = ""; }
-else { processed.push(trimmed); }
-} else {
-buffer = buffer ? buffer + " " + trimmed : trimmed;
-}
-}
-}
-if (buffer) processed.push(buffer);
-return processed.join("\n").replace(/\n{3,}/g, "\n\n");
-}
-
-// ⚡ 대형 통합 병합 처리부
-merge.onclick=async()=>{
-if(!selected.length){ alert("파일을 선택하세요"); return; }
-let total=0;
-const sepOption = document.querySelector('input[name="separator"]:checked').value;
-const isNovel = novelMode.checked;
-
-if (isNovel) {
-let tempArray = [];
-for(let i=0; i<selected.length; i++){
-let text = await selected[i].text();
-let processed = cleanNovelLineBreaks(text);
-if (sepOption === 'name') tempArray.push(`/* === File: ${selected[i].name} === */\n`);
-tempArray.push(processed);
-if(i < selected.length-1){
-if(sepOption === 'br') tempArray.push("\n\n");
-else if(sepOption === 'dash') tempArray.push("\n\n----------------------------------------\n\n");
-else if(sepOption === 'name') tempArray.push("\n\n\n\n");
-}
-bar.style.width=((i+1)/selected.length*100)+"%";
-}
-mergedText = tempArray.join("");
-mergedBlob = new Blob([mergedText], {type:"text/plain"});
-} else {
-const parts=[];
-for(let i=0;i<selected.length;i++){
-if (sepOption === 'name') parts.push(new Blob([`/* === File: ${selected[i].name} === */\n`], {type:"text/plain"}));
-parts.push(selected[i]);
-if(i<selected.length-1){
-if(sepOption === 'br') parts.push("\n\n");
-else if(sepOption === 'dash') parts.push("\n\n----------------------------------------\n\n");
-else if(sepOption === 'name') parts.push("\n\n\n\n");
-}
-total+=selected[i].size;
-bar.style.width=((i+1)/selected.length*100)+"%";
-}
-mergedBlob=new Blob(parts,{type:"text/plain"});
-mergedText = total < 5*1024*1024 ? await mergedBlob.text() : null;
-}
-
-if(mergedBlob.size < 5*1024*1024){
-if(!mergedText) mergedText = await mergedBlob.text();
-preview.value=mergedText;
-copy.disabled=false;
-}else{
-preview.value="[5MB 이상 대용량 파일 완료] 브라우저 지연을 방지하기 위해 미리보기를 생략합니다. 즉시 저장 버튼을 눌러주세요.";
-copy.disabled=true;
-}
-save.disabled=false;
-};
-
-copy.onclick=async()=>{
-if(!mergedText)return;
-await navigator.clipboard.writeText(mergedText);
-alert("클립보드 복사 완료!");
-};
-
-// 3. 브라우저 명세를 엄격히 준수한 가상 앵커 실물 추가 다운로드 로직 (저장 정상화 완료)
-save.onclick=()=>{
-if(!mergedBlob)return;
-const url=URL.createObjectURL(mergedBlob);
-const a=document.createElement("a");
-a.href=url;
-a.download="merged_result.txt";
-document.body.appendChild(a); // 보안 우회를 위해 실물 배치 필수
-a.click();
-setTimeout(()=>{
-document.body.removeChild(a); // 안전하게 가비지 컬렉팅 제거
-URL.revokeObjectURL(url);
-},3000);
-};
-
-render();
 </script>
 </body>
 </html>
