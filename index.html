@@ -80,6 +80,10 @@ header h1 {
     background: rgba(0, 113, 227, 0.04);
     transform: scale(0.995);
 }
+/* [★버그 수정 패치] 자식 엘리먼트들이 마우스 이벤트를 가로채지 못하도록 락 해제 */
+.dropzone-area * {
+    pointer-events: none;
+}
 .dropzone-area .icon {
     font-size: 40px;
     margin-bottom: 12px;
@@ -332,11 +336,12 @@ textarea:focus { border-color: var(--primary); }
     </header>
 
     <div class="glass-card">
+        <!-- [★마운트 패치] 인풋 엘리먼트를 드롭 존 영역 내부의 맨 위 형제 격으로 순서 조정 완료 -->
         <div id="drop" class="dropzone-area">
+            <input id="files" type="file" multiple hidden>
             <span class="icon">📥</span>
             <p>파일을 이 영역에 드래그 앤 드롭하거나 클릭하여 선택하세요.</p>
             <span>지원 확장자: .txt, .html, .css, .js, .csv, .md, .json</span>
-            <input id="files" type="file" multiple hidden>
         </div>
     </div>
 
@@ -374,4 +379,316 @@ textarea:focus { border-color: var(--primary); }
     </div>
 
     <div class="btn-row">
-        <button id="merge" class
+        <button id="merge" class="btn-primary">⚡ 병합</button>
+        <button id="dedup" class="btn-secondary" style="background: rgba(0, 113, 227, 0.1); color: var(--primary);">✨ 중복 파일 정리</button>
+        <button id="copy" class="btn-secondary" disabled>📋 복사</button>
+        <button id="save" class="btn-secondary" disabled>💾 저장</button>
+        <button id="check" class="btn-secondary">🔍 번호 검사</button>
+        <button id="clear" class="btn-danger">🗑 초기화</button>
+    </div>
+
+    <div class="progress-container">
+        <div id="bar" class="progress-bar"></div>
+    </div>
+
+    <div id="report" class="report-box"></div>
+
+    <div class="glass-card">
+        <span class="preview-title">병합 데이터 미리보기</span>
+        <textarea id="preview" readonly placeholder="병합 작업 완료 시 여기에 결과물이 노출됩니다."></textarea>
+    </div>
+</div>
+
+<script>
+let selected = [];
+let mergedBlob = null;
+let mergedText = null;
+
+window.addEventListener("DOMContentLoaded", () => {
+    const drop = document.getElementById("drop");
+    const files = document.getElementById("files");
+    const list = document.getElementById("list");
+    const info = document.getElementById("info");
+    const bar = document.getElementById("bar");
+    const report = document.getElementById("report");
+    const preview = document.getElementById("preview");
+    const search = document.getElementById("search");
+    const sortEngine = document.getElementById("sortEngine");
+    const novelMode = document.getElementById("novelMode");
+    const copy = document.getElementById("copy");
+    const save = document.getElementById("save");
+    const clear = document.getElementById("clear");
+    const check = document.getElementById("check");
+    const merge = document.getElementById("merge");
+    const dedup = document.getElementById("dedup");
+
+    // [★클릭 버그 영구 패치] 클릭 타겟팅 강제 매핑 체계 고정
+    drop.addEventListener("click", (e) => {
+        files.click();
+    });
+
+    files.addEventListener("change", e => {
+        if (e.target.files.length > 0) {
+            selected.push(...e.target.files);
+            applySortAndRender();
+        }
+    });
+
+    drop.addEventListener("dragover", e => {
+        e.preventDefault();
+        drop.classList.add("dragover");
+    });
+
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+
+    drop.addEventListener("drop", e => {
+        e.preventDefault();
+        drop.classList.remove("dragover");
+        if (e.dataTransfer.files.length > 0) {
+            selected.push(...e.dataTransfer.files);
+            applySortAndRender();
+        }
+    });
+
+    function applySortAndRender() {
+        const sortType = sortEngine.value;
+        if (sortType === "name-asc") {
+            selected.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        } else if (sortType === "name-desc") {
+            selected.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true, sensitivity: 'base'}));
+        } else if (sortType === "num-asc") {
+            selected.sort((a, b) => {
+                const numA = a.name.match(/\d+/);
+                const numB = b.name.match(/\d+/);
+                return (numA ? parseInt(numA[0]) : 0) - (numB ? parseInt(numB[0]) : 0);
+            });
+        } else if (sortType === "size-desc") {
+            selected.sort((a, b) => b.size - a.size);
+        }
+        render(search.value);
+    }
+
+    sortEngine.onchange = () => applySortAndRender();
+
+    dedup.onclick = () => {
+        if (!selected.length) { alert("목록이 비어있습니다."); return; }
+        const initial = selected.length;
+        const seen = new Set();
+        selected = selected.filter(f => {
+            const key = `${f.name}_${f.size}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        const diff = initial - selected.length;
+        applySortAndRender();
+        report.innerHTML = diff > 0 
+            ? `<div class="status-banner success">✨ 중복 데이터 스캔 완료: <b>${diff}개</b>의 완전히 겹치는 파일을 제외했습니다.</div>`
+            : `<div class="status-banner warning">중복된 파일이 존재하지 않습니다.</div>`;
+    };
+
+    function render(filter = "") {
+        list.innerHTML = "";
+        let total = 0;
+        let visibleCount = 0;
+
+        selected.forEach((f, i) => {
+            total += f.size;
+
+            if (filter && !f.name.toLowerCase().includes(filter.toLowerCase()))
+                return;
+
+            visibleCount++;
+            const row = document.createElement("div");
+            row.className = "file-item";
+            row.innerHTML = `
+                <div class="file-info">
+                    <span class="file-index">${i + 1}.</span>
+                    <span title="${f.name}">${f.name}</span>
+                    <span class="file-size-tag">${(f.size / 1024).toFixed(1)} KB</span>
+                </div>
+                <div class="file-actions">
+                    <button class="btn-icon" onclick="window.up(${i}, event)">▲</button>
+                    <button class="btn-icon" onclick="window.down(${i}, event)">▼</button>
+                    <button class="btn-icon" onclick="window.delFile(${i}, event)" style="background: rgba(255, 69, 58, 0.1); color: var(--danger); border-color: rgba(255,69,58,0.2);">✕</button>
+                </div>`;
+            list.appendChild(row);
+        });
+
+        info.textContent = `전체 파일 ${selected.length}개 (필터 매칭: ${visibleCount}개) | ${(total / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    window.up = (i, e) => {
+        if (e) e.stopPropagation();
+        if (i === 0) return;
+        sortEngine.value = "none";
+        [selected[i - 1], selected[i]] = [selected[i], selected[i - 1]];
+        render(search.value);
+    };
+
+    window.down = (i, e) => {
+        if (e) e.stopPropagation();
+        if (i >= selected.length - 1) return;
+        sortEngine.value = "none";
+        [selected[i + 1], selected[i]] = [selected[i], selected[i + 1]];
+        render(search.value);
+    };
+
+    window.delFile = (i, e) => {
+        if (e) e.stopPropagation();
+        selected.splice(i, 1);
+        render(search.value);
+    };
+
+    search.oninput = e => render(e.target.value);
+
+    clear.onclick = () => {
+        selected = [];
+        files.value = "";
+        preview.value = "";
+        report.innerHTML = "";
+        bar.style.width = "0%";
+        sortEngine.value = "none";
+        search.value = "";
+        novelMode.checked = false;
+        copy.disabled = true;
+        save.disabled = true;
+        render();
+    };
+
+    check.onclick = () => {
+        const nums = [];
+        for (const f of selected) {
+            const m = f.name.match(/(\d+)(?!.*\d)/);
+            if (m) {
+                nums.push({ num: parseInt(m[1]), raw: m[1] });
+            }
+        }
+
+        if (nums.length < 2) {
+            report.innerHTML = '<div class="status-banner danger">파일명에 숫자가 기재된 파일이 부족하여 연속성 검사를 진행할 수 없습니다.</div>';
+            return;
+        }
+
+        nums.sort((a, b) => a.num - b.num);
+        const missing = [];
+        const dup = [];
+
+        for (let i = 1; i < nums.length; i++) {
+            if (nums[i].num === nums[i - 1].num) dup.push(nums[i].num);
+            for (let n = nums[i - 1].num + 1; n < nums[i].num; n++) missing.push(n);
+        }
+
+        let html = '';
+        if (!missing.length && !dup.length) {
+            html = '<div class="status-banner success">✅ 번호 검사 완료: 누락 및 중복이 없는 순수한 연속 스트리밍 상태입니다.</div>';
+        } else {
+            html = '<div class="status-banner warning">';
+            if (missing.length) html += `<b>⚠️ 누락된 번호:</b> ${missing.join(", ")}<br><br>`;
+            if (dup.length) html += `<b>🚨 중복된 번호:</b> ${dup.join(", ")}`;
+            html += '</div>';
+        }
+
+        html += `<div class="report-summary">탐지 번호 범위: ${nums[0].num} ~ ${nums[nums.length - 1].num} | 총 검증 대상: ${nums.length}개 데이터</div>`;
+        report.innerHTML = html;
+    };
+
+    function cleanNovelLineBreaks(text) {
+        let normalized = text.replace(/\r\n/g, "\n").trim();
+        let lines = normalized.split("\n");
+        let processed = [];
+        let buffer = "";
+
+        for (let line of lines) {
+            let trimmed = line.trim();
+            if (trimmed === "") {
+                if (buffer) { processed.push(buffer); buffer = ""; }
+                processed.push("");
+            } else {
+                if (/^[「\"'『]/.test(trimmed) || /[」\"'』\.!\?]$/.test(trimmed) || trimmed.length < 35) {
+                    if (buffer) { processed.push(buffer + " " + trimmed); buffer = ""; }
+                    else { processed.push(trimmed); }
+                } else {
+                    buffer = buffer ? buffer + " " + trimmed : trimmed;
+                }
+            }
+        }
+        if (buffer) processed.push(buffer);
+        return processed.join("\n").replace(/\n{3,}/g, "\n\n");
+    }
+
+    merge.onclick = async () => {
+        if (!selected.length) { alert("파일을 먼저 추가해주세요."); return; }
+        let total = 0;
+        const sepOption = document.querySelector('input[name="separator"]:checked').value;
+        const isNovel = novelMode.checked;
+
+        if (isNovel) {
+            let tempArray = [];
+            for (let i = 0; i < selected.length; i++) {
+                let text = await selected[i].text();
+                let processed = cleanNovelLineBreaks(text);
+                if (sepOption === 'name') tempArray.push(`/* === File: ${selected[i].name} === */\n`);
+                tempArray.push(processed);
+                if (i < selected.length - 1) {
+                    if (sepOption === 'br') tempArray.push("\n\n");
+                    else if (sepOption === 'dash') tempArray.push("\n\n----------------------------------------\n\n");
+                    else if (sepOption === 'name') tempArray.push("\n\n\n\n");
+                }
+                bar.style.width = ((i + 1) / selected.length * 100) + "%";
+            }
+            mergedText = tempArray.join("");
+            mergedBlob = new Blob([mergedText], { type: "text/plain;charset=utf-8" });
+        } else {
+            const parts = [];
+            for (let i = 0; i < selected.length; i++) {
+                if (sepOption === 'name') parts.push(new Blob([`/* === File: ${selected[i].name} === */\n`], { type: "text/plain;charset=utf-8" }));
+                parts.push(selected[i]);
+                if (i < selected.length - 1) {
+                    if (sepOption === 'br') parts.push("\n\n");
+                    else if (sepOption === 'dash') parts.push("\n\n----------------------------------------\n\n");
+                    else if (sepOption === 'name') parts.push("\n\n\n\n");
+                }
+                total += selected[i].size;
+                bar.style.width = ((i + 1) / selected.length * 100) + "%";
+            }
+            mergedBlob = new Blob(parts, { type: "text/plain;charset=utf-8" });
+            mergedText = total < 5 * 1024 * 1024 ? await mergedBlob.text() : null;
+        }
+
+        if (mergedBlob.size < 5 * 1024 * 1024) {
+            if (!mergedText) mergedText = await mergedBlob.text();
+            preview.value = mergedText;
+            copy.disabled = false;
+        } else {
+            preview.value = "[5MB 이상 대용량 파일 완료] 브라우저 지연을 방지하기 위해 실시간 미리보기를 생략합니다. 즉시 다운로드 저장 버튼을 이용해 주세요.";
+            copy.disabled = true;
+        }
+        save.disabled = false;
+    };
+
+    copy.onclick = async () => {
+        if (!mergedText) return;
+        await navigator.clipboard.writeText(mergedText);
+        alert("클립보드에 전체 데이터가 복사되었습니다!");
+    };
+
+    save.onclick = () => {
+        if (!mergedBlob) return;
+        const url = URL.createObjectURL(mergedBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "merged_result.txt";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 3000);
+    };
+
+    render();
+});
+</script>
+</body>
+</html>
